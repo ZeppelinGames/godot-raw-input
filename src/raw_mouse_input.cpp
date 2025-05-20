@@ -6,6 +6,7 @@
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <vector>
+#include <string>
 #include <cstdio>
 #include <mutex>
 #include <queue>
@@ -14,6 +15,7 @@ using namespace godot;
 
 struct RawMouseEvent
 {
+    godot::String guid;
     USHORT usFlags;
     ULONG ulButtons;
     USHORT usButtonFlags;
@@ -36,9 +38,10 @@ void RawMouseInput::_bind_methods()
     ClassDB::bind_method(D_METHOD("init"), &RawMouseInput::init);
 
     ADD_SIGNAL(MethodInfo("raw_mouse",
-                          PropertyInfo(godot::Variant::Type::INT, "usFlags"),
-                          PropertyInfo(godot::Variant::Type::INT, "ulButtons"),
-                          PropertyInfo(godot::Variant::Type::INT, "usButtonFlags"),
+                          PropertyInfo(godot::Variant::STRING, "guid"),
+                          PropertyInfo(godot::Variant::INT, "usFlags"),
+                          PropertyInfo(godot::Variant::INT, "ulButtons"),
+                          PropertyInfo(godot::Variant::INT, "usButtonFlags"),
                           PropertyInfo(godot::Variant::INT, "usButtonData"),
                           PropertyInfo(godot::Variant::INT, "ulRawButtons"),
                           PropertyInfo(godot::Variant::INT, "lLastX"),
@@ -108,6 +111,7 @@ void RawMouseInput::_process(double delta)
         RawMouseEvent evt = raw_mouse_queue.front();
         raw_mouse_queue.pop();
         emit_signal("raw_mouse",
+                    evt.guid,
                     (int)evt.usFlags,
                     (int)evt.ulButtons,
                     (int)evt.usButtonFlags,
@@ -116,6 +120,23 @@ void RawMouseInput::_process(double delta)
                     (int)evt.lLastX,
                     (int)evt.lLastY);
     }
+}
+
+String GetDeviceName(HANDLE hDevice) {
+    UINT nameSize = 0;
+    GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, nullptr, &nameSize);
+    if (nameSize == 0) return String();
+
+    std::vector<wchar_t> deviceName(nameSize);
+    if (GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, deviceName.data(), &nameSize) == -1)
+        return String();
+
+    // Convert wide string to UTF-8
+    int utf8Size = WideCharToMultiByte(CP_UTF8, 0, deviceName.data(), -1, nullptr, 0, nullptr, nullptr);
+    std::string utf8DeviceName(utf8Size, 0);
+    WideCharToMultiByte(CP_UTF8, 0, deviceName.data(), -1, utf8DeviceName.data(), utf8Size, nullptr, nullptr);
+
+    return String(utf8DeviceName.c_str());
 }
 
 LRESULT CALLBACK CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -130,9 +151,14 @@ LRESULT CALLBACK CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
         if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb.data(), &dwSize, sizeof(RAWINPUTHEADER)) == dwSize)
         {
             RAWINPUT *raw = (RAWINPUT *)lpb.data();
+            HANDLE hDevice = raw->header.hDevice;
+
+            String deviceName = GetDeviceName(hDevice);
+
             if (raw->header.dwType == RIM_TYPEMOUSE)
             {
                 RawMouseEvent evt = {
+                    deviceName,
                     raw->data.mouse.usFlags,
                     raw->data.mouse.ulButtons,
                     raw->data.mouse.usButtonFlags,

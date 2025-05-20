@@ -10,5 +10,5 @@ func _ready():
 	var callable :Callable = Callable(self, "_on_raw_mouse");
 	raw_input.connect("raw_mouse", callable)
 	
-func _on_raw_mouse(usFlags, ulButtons, usButtonFlags, usButtonData, ulRawButtons, dx, dy):
-	print("Mouse moved: dx = %d, dy = %d" % [dx, dy])
+func _on_raw_mouse(deviceName, usFlags, ulButtons, usButtonFlags, usButtonData, ulRawButtons, dx, dy):
+	print("Mouse (" + deviceName + ") moved: dx = %d, dy = %d" % [dx, dy])

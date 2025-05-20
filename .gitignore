@@ -4,3 +4,6 @@
 *.lib
 *.exp
 *.uid
+
+.sconsign.dblite
+godot-cpp/*
