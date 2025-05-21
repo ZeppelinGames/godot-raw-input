@@ -15,6 +15,10 @@ run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.4", "Mobile")
 config/icon="res://icon.svg"
 
+[autoload]
+
+RawMouseInputWrapper="*res://RawMouseInputWrapper.gd"
+
 [rendering]
 
 renderer/rendering_method="mobile"

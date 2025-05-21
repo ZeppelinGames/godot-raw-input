@@ -14,7 +14,8 @@ public:
     static void _bind_methods();
     bool init();
     void _process(double delta);
-    static void forward_raw_mouse(USHORT usFlags, ULONG ulButtons, USHORT usButtonFlags, USHORT usButtonData, ULONG ulRawButtons, LONG lLastX, LONG lLastY);
+    void _enter_tree();
+    void _exit_tree();
 
 private:
     HWND hwnd = nullptr;

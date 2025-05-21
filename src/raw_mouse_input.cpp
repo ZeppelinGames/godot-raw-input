@@ -1,5 +1,3 @@
-// raw_mouse_input.cpp
-
 #include "raw_mouse_input.h"
 
 #include <godot_cpp/classes/display_server.hpp>
@@ -35,8 +33,7 @@ LRESULT CALLBACK CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 void RawMouseInput::_bind_methods()
 {
-    ClassDB::bind_method(D_METHOD("init"), &RawMouseInput::init);
-
+    OutputDebugStringA("Binding RawMouseInput");
     ADD_SIGNAL(MethodInfo("raw_mouse",
                           PropertyInfo(godot::Variant::STRING, "guid"),
                           PropertyInfo(godot::Variant::INT, "usFlags"),
@@ -50,7 +47,6 @@ void RawMouseInput::_bind_methods()
 
 bool RawMouseInput::init()
 {
-    printf("Init");
     OutputDebugStringA("Initialising RawMouseInput");
     raw_mouse_input_instance = this;
 
@@ -59,12 +55,12 @@ bool RawMouseInput::init()
 
     if (!hwnd)
     {
-        printf("Failed to get native window handle\n");
+        OutputDebugStringA("Failed to get native window handle");
         return false;
     }
     else
     {
-        printf("Got HWND: %p\n", hwnd);
+        OutputDebugStringA("Got HWND");
     }
 
     if (hwnd && !original_wndproc)
@@ -73,12 +69,12 @@ bool RawMouseInput::init()
             SetWindowLongPtr(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(CustomWndProc)));
         if (!original_wndproc)
         {
-            printf("Failed to hook WndProc: %ld\n", GetLastError());
+            OutputDebugStringA("Failed to hook WndProc");
             return false;
         }
         else
         {
-            printf("Successfully hooked WndProc\n");
+            OutputDebugStringA("Successfully hooked WndProc");
         }
 
         RAWINPUTDEVICE rid;
@@ -89,12 +85,12 @@ bool RawMouseInput::init()
         bool registered = RegisterRawInputDevices(&rid, 1, sizeof(rid));
         if (!registered)
         {
-            printf("Failed to register raw input device: %ld\n", GetLastError());
+            OutputDebugStringA("Failed to register raw input device");
             return false;
         }
         else
         {
-            printf("Registered raw input device\n");
+            OutputDebugStringA("Registered raw input device");
         }
     }
 
@@ -122,14 +118,15 @@ void RawMouseInput::_process(double delta)
     }
 }
 
-String GetDeviceName(HANDLE hDevice) {
+String GetDeviceName(HANDLE &hDevice) {
     UINT nameSize = 0;
     GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, nullptr, &nameSize);
-    if (nameSize == 0) return String();
+    if (nameSize == 0) return "Unknown";
 
     std::vector<wchar_t> deviceName(nameSize);
-    if (GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, deviceName.data(), &nameSize) == -1)
-        return String();
+    if (GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, deviceName.data(), &nameSize) <= 0) {   
+        return "Invalid";
+    }
 
     // Convert wide string to UTF-8
     int utf8Size = WideCharToMultiByte(CP_UTF8, 0, deviceName.data(), -1, nullptr, 0, nullptr, nullptr);
@@ -175,13 +172,33 @@ LRESULT CALLBACK CustomWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
     return CallWindowProc(original_wndproc, hWnd, msg, wParam, lParam);
 }
 
+void RawMouseInput::_enter_tree() {
+    if (raw_mouse_input_instance) {
+        OutputDebugStringA("RawMouseInput already initialized.\n");
+        return;
+    }
+
+    init();
+}
+
+void RawMouseInput::_exit_tree() {
+    if (raw_mouse_input_instance == this) {
+        raw_mouse_input_instance = nullptr;
+        set_process(false);
+
+        if (original_wndproc && hwnd) {
+            SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)original_wndproc);
+            original_wndproc = nullptr;
+            hwnd = nullptr;
+        }
+    }
+}
+
 void initialize_rawmouseinput(ModuleInitializationLevel p_level)
 {
     if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE)
     {
         ClassDB::register_class<RawMouseInput>();
-        RawMouseInput *input = memnew(RawMouseInput);
-        input->init();
     }
 }
 
@@ -189,6 +206,5 @@ void uninitialize_rawmouseinput(ModuleInitializationLevel p_level)
 {
     if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE)
     {
-        SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)original_wndproc);
     }
 }

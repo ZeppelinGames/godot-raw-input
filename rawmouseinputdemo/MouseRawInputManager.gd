@@ -1,14 +1,10 @@
-extends Node2D
+extends Control
 
-func _ready():
-	var raw_input = RawMouseInput.new();
-	
-	# Needs to be deferred 
-	raw_input.call_deferred("init");
-	add_child(raw_input);
-	
-	var callable :Callable = Callable(self, "_on_raw_mouse");
-	raw_input.connect("raw_mouse", callable)
-	
+@onready var outputText := $RichTextLabel;
+
+func _init():
+	RawMouseInputWrapper.connect("raw_mouse", Callable(self, "_on_raw_mouse"));
+
 func _on_raw_mouse(deviceName, usFlags, ulButtons, usButtonFlags, usButtonData, ulRawButtons, dx, dy):
-	print("Mouse (" + deviceName + ") moved: dx = %d, dy = %d" % [dx, dy])
+	outputText.text = "Mouse (" + deviceName + ") moved: (" + str(dx) + ", " + str(dy) + ")";
+	
